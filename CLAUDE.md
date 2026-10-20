@@ -1,7 +1,7 @@
 # iran-news-mcp
 
 Unofficial, read-only MCP server over the public RSS feeds and article pages of Mehr, Khabaronline, Hamshahri, Tabnak,
-Zoomit and Digiato. ISNA and IRNA were dropped on 2026-10-20 (article pages behind a JS challenge, see Quirks). Copies the layout of `../snapp-mcp`; keep them in step. Not yet published (no commit, tag or PyPI release).
+Zoomit and Digiato. ISNA and IRNA were dropped on 2026-10-20 (article pages behind a JS challenge, see Quirks). Copies the layout of `../snapp-mcp`; keep them in step. On GitHub (`sepehr071/iran-news-mcp`, public), not yet released (no tag or PyPI release).
 API map: `../news-rss/`.
 
 ## Layout
