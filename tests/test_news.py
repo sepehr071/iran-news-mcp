@@ -13,6 +13,10 @@ HOSTS = {
     "tabnak": "www.tabnak.ir",
     "zoomit": "www.zoomit.ir",
     "digiato": "digiato.com",
+    "entekhab": "www.entekhab.ir",
+    "asriran": "www.asriran.com",
+    "varzesh3": "www.varzesh3.com",
+    "khabarvarzeshi": "www.khabarvarzeshi.com",
 }
 
 
@@ -38,6 +42,13 @@ def test_tabnak_date_and_zoomit_categories():
     assert z["image"].startswith("https://api2.zoomit.ir/media/")
 
 
+def test_new_source_feed_quirks():
+    v = news.parse_feed(fixture("varzesh3.xml"), "varzesh3")[0]  # ISO date without a zone is UTC
+    assert v["date"].isoformat() == "2026-10-20T12:24:39+00:00" and "varzesh3.com/news/" in v["url"]
+    e = news.parse_feed(fixture("entekhab.xml"), "entekhab")[0]
+    assert e["date"].isoformat().startswith("2026-10-20T12:26:34") and "/fa/news/" in e["url"]  # 15:56:34 +03:30
+
+
 def test_text_and_norm():
     assert news._text("<p>سلام&nbsp;<b>دنیا</b></p>\n x") == "سلام دنیا x"
     assert news._norm("كتاب‌ها ۱۲") == "کتاب ها 12"
@@ -50,6 +61,9 @@ async def test_list_sources(client):
     ids = [s["id"] for s in r.structured_content["sources"]]
     assert ids == list(HOSTS)
     assert r.structured_content["sources"][0]["categories"]["politics"] == "سیاست"
+    groups = {s["id"]: s["group"] for s in r.structured_content["sources"]}
+    assert {k for k, g in groups.items() if g == "sports"} == {"varzesh3", "khabarvarzeshi"}
+    assert {k for k, g in groups.items() if g == "tech"} == {"zoomit", "digiato"}
 
 
 async def test_latest_category_url_and_limit(client, feeds):
@@ -59,6 +73,39 @@ async def test_latest_category_url_and_limit(client, feeds):
     assert d["count"] == 2 and d["items"][0]["source"] == "mehr"
     assert d["items"][0]["published"] > d["items"][1]["published"]
     assert feeds.calls[0].url.path == "/rss/tp/7"
+
+
+@pytest.mark.parametrize(
+    ("src", "category", "url"),
+    [
+        ("entekhab", "sports", "www.entekhab.ir/fa/rss/9"),
+        ("asriran", "sports", "www.asriran.com/fa/rss/1/6"),
+        ("varzesh3", "sports", "www.varzesh3.com/rss/all"),
+        ("khabarvarzeshi", "sports", "www.khabarvarzeshi.com/rss"),
+    ],
+)
+async def test_new_source_category_urls(client, feeds, src, category, url):
+    feeds[url] = fixture(f"{src}.xml")
+    r = await client.call_tool("nw_latest", {"source": src, "category": category, "limit": 2})
+    assert r.structured_content["count"] == 2 and r.structured_content["items"][0]["source"] == src
+
+
+async def test_source_without_the_category_is_skipped_in_latest_all(client, feeds):
+    feeds["www.entekhab.ir/fa/rss/9"] = fixture("entekhab.xml")
+    r = await client.call_tool("nw_latest_all", {"sources": ["zoomit", "entekhab"], "category": "sports"})
+    assert r.structured_content["errors"] == {"zoomit": "no category 'sports'"}
+    assert {i["source"] for i in r.structured_content["items"]} == {"entekhab"}
+
+
+async def test_dateless_item_sorts_last(client, feeds):
+    feeds["www.varzesh3.com/rss/all"] = (
+        b"<rss version='2.0'><channel><item><title>live</title><link>https://www.varzesh3.com/news/1</link></item>"
+        b"<item><title>story</title><link>https://www.varzesh3.com/news/2</link>"
+        b"<pubDate>Tue, 20 Oct 2026 12:23:25 GMT</pubDate></item></channel></rss>"
+    )
+    r = await client.call_tool("nw_latest", {"source": "varzesh3"})
+    assert [i["title"] for i in r.structured_content["items"]] == ["story", "live"]
+    assert not r.structured_content["stale"]
 
 
 async def test_default_sizes_keep_replies_small(client):
@@ -119,7 +166,7 @@ async def test_latest_all_merges_sorted(client, feeds):
     route_all(feeds)
     r = await client.call_tool("nw_latest_all", {"per_source": 2})
     items = r.structured_content["items"]
-    assert len(items) == 12 and not r.structured_content.get("errors")
+    assert len(items) == 2 * len(HOSTS) and not r.structured_content.get("errors")
     dates = [i["published"] for i in items]
     assert dates == sorted(dates, reverse=True)
 
@@ -154,7 +201,9 @@ async def test_max_limit_replies_stay_under_15kb(client, feeds):
     for s, h in HOSTS.items():
         feeds[h + news.SOURCES[s]["latest"].split(h, 1)[1]] = _big_feed(host=h)
     r = await client.call_tool("nw_latest_all", {"per_source": props["nw_latest_all"]["per_source"]["maximum"]})
-    assert len(r.content[0].text.encode()) < 15_000 and r.structured_content["count"] == 6 * news.PER_SOURCE_MAX
+    assert (
+        len(r.content[0].text.encode()) < 15_000 and r.structured_content["count"] == len(HOSTS) * news.PER_SOURCE_MAX
+    )
     r = await client.call_tool("nw_latest", {"source": "mehr", "limit": 100})
     assert r.is_error  # over the cap is refused
 
@@ -175,6 +224,53 @@ async def test_stale_feed_is_flagged(client, feeds):
     feeds["www.mehrnews.com/rss"] = _big_feed(n=1).replace(b"2026 10:00", b"2099 10:00")
     r = await client.call_tool("nw_latest", {"source": "mehr"})
     assert not r.structured_content["stale"]
+
+
+def _digiato_pages(req, pages=5, word="آیفون"):
+    """A Digiato feed of 10 items per `?paged=N`, newest first; the last page's first story mentions `word`."""
+    n = int(req.url.params.get("paged", 1))
+    items = "".join(
+        f"<item><title>{word if (n == pages and k == 0) else 'خبر'} {n}-{k}</title><link>https://digiato.com/{n}-{k}</link>"
+        f"<pubDate>Mon, 19 Oct 2026 {20 - n:02d}:{59 - k:02d}:00 +0000</pubDate>"
+        f"<description>{'خ' * 400}</description><category>موبایل</category></item>"
+        for k in range(10)
+    )
+    return httpx.Response(200, content=f"<rss version='2.0'><channel>{items}</channel></rss>".encode())
+
+
+async def test_tech_news_reads_digiato_pages_deep(client, feeds):
+    feeds["digiato.com/feed"] = _digiato_pages
+    r = await client.call_tool("nw_tech_news", {"limit": 25})
+    d = r.structured_content
+    assert d["count"] == 25 and d["scanned"] == 30 and not d.get("errors")
+    dates = [i["published"] for i in d["items"]]
+    assert dates == sorted(dates, reverse=True) and {i["source"] for i in d["items"]} == {"digiato"}
+    assert max(len(i["summary"]) for i in d["items"]) <= news.TECH_SUMMARY + len("...[cut]")
+    assert sorted(c.url.params.get("paged", "1") for c in feeds.calls) == ["1", "2", "3"]
+
+
+async def test_tech_news_topic_scans_five_pages(client, feeds):
+    feeds["digiato.com/feed"] = _digiato_pages
+    d = (await client.call_tool("nw_tech_news", {"topic": "آیفون"})).structured_content
+    assert d["scanned"] == 50 and d["count"] == 1 and d["items"][0]["title"].startswith("آیفون")
+
+
+async def test_tech_news_category_both_sources_and_errors(client, feeds):
+    feeds["digiato.com/feed"] = _digiato_pages
+    feeds["www.zoomit.ir/feed/"] = fixture("zoomit.xml").replace(b"2026", b"2099")  # newest story of the merge
+    d = (await client.call_tool("nw_tech_news", {"source": "both", "limit": 5})).structured_content
+    assert d["count"] == 5 and {i["source"] for i in d["items"]} == {"digiato", "zoomit"}
+    d = (await client.call_tool("nw_tech_news", {"category": "gaming", "source": "both"})).structured_content
+    assert d["errors"] == {"digiato": "no category 'gaming'"}
+    r = await client.call_tool("nw_tech_news", {"category": "gaming"})
+    assert r.is_error and "no category 'gaming'" in r.content[0].text
+
+
+async def test_tech_news_max_limit_size_and_cap(client, feeds):
+    feeds["digiato.com/feed"] = lambda req: httpx.Response(200, content=_big_feed(n=10, host="digiato.com"))
+    r = await client.call_tool("nw_tech_news", {"limit": news.TECH_LIMIT_MAX})
+    assert len(r.content[0].text.encode()) < 36_000
+    assert (await client.call_tool("nw_tech_news", {"limit": news.TECH_LIMIT_MAX + 1})).is_error
 
 
 async def test_empty_channel_is_not_cached(client, feeds):

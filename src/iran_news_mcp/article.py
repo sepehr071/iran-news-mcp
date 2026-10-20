@@ -1,4 +1,4 @@
-"""Article tool: fetch a story page from one of the six sites and return its body as plain text."""
+"""Article tool: fetch a story page from one of the supported sites and return its body as plain text."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ JUNK = {
     "invisible",
     "hidden",
     "row-start-1",
+    "entekhab_lead2",  # Entekhab's "site name :" label before the first paragraph
 }
 JUNK_PREFIX = ("ad_", "adv", "cyt-ad", "digiBanner", "HeadingLink__CopyText")
 _WS = re.compile(r"[ \t\r\f\v\u00a0]+")
@@ -39,6 +40,8 @@ def _is_body(tag: str, attrs: dict[str, str]) -> bool:
         or attrs.get("id") == "newsMainBody"  # Tabnak
         or (tag == "article" and "contents" in cls)  # Zoomit (its inner blocks only carry hashed class names)
         or "articlePost" in cls  # Digiato (WordPress)
+        or (tag == "div" and "body" in cls)  # Entekhab, Asriran (Tabnak's CMS; no id on these two)
+        or "news-body" in cls  # Varzesh3 (other classes are hashed)
     )
 
 
@@ -71,6 +74,9 @@ class _Extract(HTMLParser):
             if tag not in VOID and _is_body(tag, a):
                 self.found = True
                 self.stack.append((tag, False))
+            return
+        if a.get("id") == "MV_afterBody":  # Asriran leaves its body div open around the "most viewed" and video blocks
+            self.done = True
             return
         if tag in BLOCK:
             self.parts.append("\n")
@@ -130,7 +136,7 @@ async def nw_article(
     url: Annotated[
         str,
         Field(
-            description="Article url from nw_latest / nw_search / nw_latest_all (one of the six sites).",
+            description="Article url from nw_latest / nw_search / nw_latest_all (from any listed source).",
             examples=["https://www.mehrnews.com/news/6983987"],
         ),
     ],

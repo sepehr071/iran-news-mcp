@@ -39,6 +39,10 @@ HOSTS = {
     "www.tabnak.ir",
     "www.zoomit.ir",
     "digiato.com",
+    "www.entekhab.ir",
+    "www.asriran.com",
+    "www.varzesh3.com",
+    "www.khabarvarzeshi.com",
 }
 
 _transport: httpx.AsyncBaseTransport | None = None
@@ -177,7 +181,7 @@ async def fetch_page(url: str) -> bytes:
 def _host(url: str) -> str:
     u = httpx.URL(url)
     if u.scheme != "https" or u.host not in HOSTS:
-        raise ApiError(f"Refusing to call unexpected host {u.host or url[:60]}; only the six news sites over https.")
+        raise ApiError(f"Refusing to call unexpected host {u.host or url[:60]}; only the listed news sites over https.")
     return u.host
 
 

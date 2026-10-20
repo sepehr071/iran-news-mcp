@@ -37,10 +37,17 @@ def test_extract_cms_body_skips_junk():
         '<div class="body" id="newsMainBody"><p>متن یک</p><div class="adv_content">x</div><p>متن دو</p></div>',
         '<div class="articlePost"><p class="wp-block-paragraph">متن یک</p><div class="ad_728_90">x</div>'
         '<p class="wp-block-paragraph">متن دو</p></div>',
+        '<div class="main-body"><p>منو</p></div><div class="body col-xs-36"><a class="entekhab_lead2">انتخاب :</a><p>متن یک</p>'
+        '<div class="adv_content">x</div><p>متن دو</p></div>',
+        '<div class="body"><p>متن یک</p><p>متن دو</p><div class="wrapper"></div>'
+        '<div id="MV_afterBody"><header>پربیننده</header><a>لینک</a></div><div class="news_controll">نظرات</div></div>',
+        '<div class="news-body v378zum5"><p style="text-align:justify">متن <a href="/x">یک</a></p>'
+        '<div class="v3w7yly9"><div data-ad="1"></div></div><p>متن دو</p></div>',
+        '<div class="item-text" itemprop="articleBody"><p>متن یک</p><p>متن دو</p></div>',
     ],
-    ids=["tabnak", "digiato"],
+    ids=["tabnak", "digiato", "entekhab", "asriran", "varzesh3", "khabarvarzeshi"],
 )
-def test_extract_tabnak_and_digiato(body):
+def test_extract_other_sites(body):
     assert article.extract(f"<html><body><p>بیرون</p>{body}<p>بیرون</p></body></html>".encode())["text"] == (
         "متن یک\nمتن دو"
     )
@@ -97,6 +104,14 @@ async def test_one_redirect_is_followed(feeds):
     feeds["www.mehrnews.com/news/1/slug"] = CMS_PAGE
     assert await http.fetch_page("https://www.mehrnews.com/news/1") == CMS_PAGE
     assert feeds.calls[-1].headers["accept"].startswith("text/html")
+
+
+async def test_new_hosts_and_varzesh3_308_redirect(feeds):
+    feeds["www.varzesh3.com/news/1"] = lambda req: httpx.Response(308, headers={"location": "/news/1/slug"})
+    feeds["www.varzesh3.com/news/1/slug"] = CMS_PAGE
+    assert await http.fetch_page("https://www.varzesh3.com/news/1") == CMS_PAGE
+    feeds["www.entekhab.ir/p"] = CMS_PAGE
+    assert await http.fetch_page("https://www.entekhab.ir/p") == CMS_PAGE
 
 
 async def test_redirect_off_the_allowlist_is_refused(feeds):

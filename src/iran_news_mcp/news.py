@@ -8,18 +8,19 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
 from . import http
 from .registry import clip, tool
 
-# source -> name, latest feed, category feed template, {slug: (id in template, Persian title)}.
+# source -> name, group (news, tech, sports), latest feed, category feed template, {slug: (id in template, Persian title)}.
 # cat=None: the site has one feed only and categories are filtered client-side on the item <category> domain slug.
 SOURCES: dict[str, dict[str, Any]] = {
     "mehr": {
         "name": "Mehr (مهر)",
+        "group": "news",
         "latest": "https://www.mehrnews.com/rss",
         "cat": "https://www.mehrnews.com/rss/tp/{}",
         "cats": {
@@ -41,6 +42,7 @@ SOURCES: dict[str, dict[str, Any]] = {
     },
     "khabaronline": {
         "name": "Khabaronline (خبرآنلاین)",
+        "group": "news",
         "latest": "https://www.khabaronline.ir/rss",
         "cat": "https://www.khabaronline.ir/rss/tp/{}",
         "cats": {
@@ -60,6 +62,7 @@ SOURCES: dict[str, dict[str, Any]] = {
     },
     "hamshahri": {
         "name": "Hamshahri (همشهری)",
+        "group": "news",
         "latest": "https://www.hamshahrionline.ir/rss",
         "cat": "https://www.hamshahrionline.ir/rss/tp/{}",
         "cats": {
@@ -83,6 +86,7 @@ SOURCES: dict[str, dict[str, Any]] = {
     },
     "tabnak": {
         "name": "Tabnak (تابناک)",
+        "group": "news",
         "latest": "https://www.tabnak.ir/fa/rss/allnews",
         "cat": "https://www.tabnak.ir/fa/rss/{}",
         "cats": {
@@ -101,6 +105,7 @@ SOURCES: dict[str, dict[str, Any]] = {
     },
     "zoomit": {
         "name": "Zoomit (زومیت)",
+        "group": "tech",
         "latest": "https://www.zoomit.ir/feed/",
         "cat": None,
         "cats": {
@@ -126,6 +131,7 @@ SOURCES: dict[str, dict[str, Any]] = {
     },
     "digiato": {
         "name": "Digiato (دیجیاتو)",
+        "group": "tech",
         "latest": "https://digiato.com/feed",
         "cat": "https://digiato.com/topic/{}/feed",
         "cats": {
@@ -145,12 +151,65 @@ SOURCES: dict[str, dict[str, Any]] = {
             "science": ("science/astronomy", "علم و نجوم"),
         },
     },
+    "entekhab": {
+        "name": "Entekhab (انتخاب)",
+        "group": "news",
+        "latest": "https://www.entekhab.ir/fa/rss/allnews",
+        "cat": "https://www.entekhab.ir/fa/rss/{}",
+        "cats": {
+            "politics": ("2", "سیاست"),
+            "world": ("3", "بین الملل"),
+            "economy": ("5", "اقتصاد"),
+            "society": ("4", "اجتماع"),
+            "tech": ("8", "فناوری"),
+            "culture": ("18", "فرهنگ و هنر"),
+            "incidents": ("10", "حوادث"),
+            "sports": ("9", "ورزش"),
+            "trivia": ("15", "خواندنی\u200cها"),
+            "health": ("14", "سلامت"),
+            "video": ("19", "ویدیو"),
+        },
+    },
+    "asriran": {
+        "name": "Asriran (عصر ایران)",
+        "group": "news",
+        "latest": "https://www.asriran.com/fa/rss/allnews",
+        "cat": "https://www.asriran.com/fa/rss/{}",
+        "cats": {
+            "politics": ("1/1", "سیاسی"),
+            "foreign-policy": ("1/2", "سیاست خارجی"),
+            "economy": ("1/4", "اقتصادی"),
+            "society": ("1/5", "اجتماعی"),
+            "sports": ("1/6", "ورزشی"),
+            "world": ("1/3", "بین الملل"),
+            "tech": ("1/14", "فناوری"),
+            "culture": ("1/8", "فرهنگی/هنری"),
+            "trivia": ("1/15", "سرگرمی"),
+            "incidents": ("1/9", "حوادث"),
+            "video": ("11", "فیلم"),
+        },
+    },
+    # Sport sites have one feed only, so "sports" maps to it (a template without {} ignores the id).
+    "varzesh3": {
+        "name": "Varzesh3 (ورزش سه)",
+        "group": "sports",
+        "latest": "https://www.varzesh3.com/rss/all",
+        "cat": "https://www.varzesh3.com/rss/all",
+        "cats": {"sports": ("", "ورزش")},
+    },
+    "khabarvarzeshi": {
+        "name": "Khabarvarzeshi (خبرورزشی)",
+        "group": "sports",
+        "latest": "https://www.khabarvarzeshi.com/rss",
+        "cat": "https://www.khabarvarzeshi.com/rss",
+        "cats": {"sports": ("", "ورزش")},
+    },
 }
 
 Source = Annotated[
     str,
     Field(
-        description="Source id: mehr, khabaronline, hamshahri, tabnak, zoomit or digiato (see nw_list_sources).",
+        description="Source id such as mehr, tabnak or varzesh3 (see nw_list_sources).",
         examples=["mehr"],
     ),
 ]
@@ -162,11 +221,15 @@ Category = Annotated[
     ),
 ]
 SourceList = Annotated[
-    list[str], Field(description="Source ids to include. Empty = all six.", examples=[["mehr", "tabnak"]])
+    list[str], Field(description="Source ids to include. Empty = all sources.", examples=[["mehr", "tabnak"]])
 ]
 
 LIMIT_MAX = 15  # keeps a full nw_latest / nw_search reply under ~15 KB
-PER_SOURCE_MAX = 3  # 6 sources x 3 brief items stay under ~15 KB
+PER_SOURCE_MAX = 2  # 10 sources x 3 brief items reach ~16 KB, so 2
+TECH_LIMIT_MAX = 30  # nw_tech_news: longer summaries, so ~25 KB at the max; the default (15) stays near 13 KB
+TECH_SUMMARY = 300
+TECH_PAGE = 10  # a Digiato feed holds 10 items; `?paged=N` reads older ones
+TECH_SEARCH_PAGES = 5  # a topic search scans 50 Digiato items
 STALE_AFTER = timedelta(days=3)  # a feed whose newest story is older is flagged (Digiato leaf feeds go quiet)
 
 _TAG = re.compile(r"<[^>]+>")
@@ -244,14 +307,14 @@ def parse_feed(xml: bytes, source: str) -> list[dict[str, Any]]:
     return items
 
 
-def _entry(source: str, it: dict[str, Any], brief: bool = False) -> dict[str, Any]:
+def _entry(source: str, it: dict[str, Any], brief: bool = False, n: int | None = None) -> dict[str, Any]:
     d = it.get("date")
     return {
         "source": source,
         "title": it["title"],
         "url": it["url"],
         "published": d.isoformat(timespec="minutes") if d else None,
-        "summary": clip(it.get("summary"), n=80 if brief else 200),
+        "summary": clip(it.get("summary"), n=n or (80 if brief else 200)),
         "categories": [] if brief else it["categories"][:3],
         "author": None if brief else it.get("author"),
     }
@@ -281,6 +344,26 @@ async def _items(source: str, category: str) -> list[dict[str, Any]]:
     return items
 
 
+async def _tech_items(source: str, category: str, pages: int) -> list[dict[str, Any]]:
+    """Newest-first items of a tech source. Digiato adds older feed pages; a failed older page is skipped."""
+    items = await _items(source, category)
+    if source != "digiato" or pages < 2:
+        return items
+    url = _feed_url(source, category)
+    sep = "&" if "?" in url else "?"
+    extra = await asyncio.gather(
+        *(http.fetch_feed(f"{url}{sep}paged={n}") for n in range(2, pages + 1)), return_exceptions=True
+    )
+    seen = {i["url"] for i in items}
+    for r in extra:
+        if isinstance(r, bytes):
+            for i in parse_feed(r, source):
+                if i["url"] not in seen:
+                    seen.add(i["url"])
+                    items.append(i)
+    return sorted(items, key=lambda i: i.get("date") or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+
+
 async def _many(sources: list[str], category: str) -> tuple[list[tuple[str, dict[str, Any]]], dict[str, str]]:
     """Fetch several sources concurrently (the client caps in-flight calls). Failures and sources without the
     category are reported per source instead of failing the whole call."""
@@ -306,15 +389,17 @@ def _by_date(pairs: list[tuple[str, dict[str, Any]]]) -> list[tuple[str, dict[st
 
 @tool("List news sources")
 async def nw_list_sources() -> dict:
-    """List the six news sources and their category slugs; call this first to know valid `source` and `category` values.
+    """List the news sources with their group and category slugs; call this first to know valid `source` and `category` values.
 
-    Sources: mehr, khabaronline, hamshahri, tabnak, zoomit, digiato. Next: nw_latest, nw_search or nw_latest_all.
+    `group`: news (Iranian general news), tech, sports. Pass chosen ids as `sources` to nw_search / nw_latest_all to filter by group.
+    Next: nw_latest, nw_search or nw_latest_all; for technology questions use nw_tech_news.
     """
     return {
         "sources": [
             {
                 "id": k,
                 "name": v["name"],
+                "group": v["group"],
                 "categories": {slug: title for slug, (_, title) in v["cats"].items()},
             }
             for k, v in SOURCES.items()
@@ -366,7 +451,8 @@ async def nw_search(
     """Search recent headlines of several sources for a keyword (client-side over their current feeds, newest first).
 
     Only the items currently in each feed (roughly the last 10-300 stories) are searched, not an archive.
-    Sources that failed or lack the category are listed under `errors`.
+    Sources that failed or lack the category are listed under `errors`. For technology topics use nw_tech_news instead
+    (deeper Digiato paging, longer summaries, higher limit).
     """
     words = _norm(query).split()
     if not words:
@@ -393,7 +479,8 @@ async def nw_latest_all(
 ) -> dict:
     """Return the newest headlines from every source (or the chosen ones), merged and sorted by time.
 
-    Use it for a news overview; pass a common category slug such as 'economy' or 'sports' to narrow it.
+    Use it for a general news overview; pass a common category slug such as 'economy' or 'sports' to narrow it.
+    Not for technology questions: use nw_tech_news.
     Sources that failed or lack the category are listed under `errors`.
     """
     pairs, errors = await _many(sources, category)
@@ -405,3 +492,69 @@ async def nw_latest_all(
             taken.append((s, i))
     taken = _by_date(taken)
     return {"count": len(taken), "items": [_entry(s, i, brief=True) for s, i in taken], "errors": errors}
+
+
+@tool("Tech news (Digiato, Zoomit)")
+async def nw_tech_news(
+    topic: Annotated[
+        str,
+        Field(
+            description="Keywords; every word must appear in the title or summary. Persian or brand names. Empty = no filter.",
+            examples=["آیفون"],
+        ),
+    ] = "",
+    category: Annotated[
+        str,
+        Field(
+            description="Tech topic slug. Digiato: mobile, apps, ai, gadgets, hardware, laptop, crypto, internet, security, "
+            "reviews, car, business, buying-guide, science. Zoomit adds apple, samsung, gaming, space, software-news, ... "
+            "(nw_list_sources has all). Empty = everything.",
+            examples=["ai"],
+        ),
+    ] = "",
+    limit: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=TECH_LIMIT_MAX,
+            description=f"Max stories (1-{TECH_LIMIT_MAX}), newest first. Use 20-30 for a roundup.",
+            examples=[20],
+        ),
+    ] = 15,
+    source: Annotated[
+        Literal["digiato", "zoomit", "both"],
+        Field(description="digiato (default, richest summaries and paging), zoomit, or both merged by time."),
+    ] = "digiato",
+) -> dict:
+    """Return the newest technology news (phones, laptops, AI, gadgets, apps, crypto, cars, security, games) with long summaries.
+
+    Use this first for any technology question instead of nw_search or nw_latest_all. Digiato is the default and is read
+    several feed pages deep, so `limit` up to 30 works; a `topic` scans the latest 50 Digiato stories (Zoomit: its 300).
+    Each item has title, url, published (UTC ISO), a summary of up to 300 characters, categories and author. `scanned`
+    is how many stories were searched: if `count` is 0 or low, try a shorter or more general `topic`, or source='both'.
+    Next: nw_article with an item's `url` for the full text.
+    """
+    ids = ["digiato", "zoomit"] if source == "both" else [source]
+    words = _norm(topic).split()
+    pages = TECH_SEARCH_PAGES if words else -(-limit // TECH_PAGE)
+    wanted = [s for s in ids if not category or category in SOURCES[s]["cats"]]
+    errors = {s: f"no category '{category}'" for s in ids if s not in wanted}
+    results = await asyncio.gather(*(_tech_items(s, category, pages) for s in wanted), return_exceptions=True)
+    pairs: list[tuple[str, dict[str, Any]]] = []
+    for s, r in zip(wanted, results, strict=True):
+        if isinstance(r, list):
+            pairs += [(s, i) for i in r]
+        else:
+            errors[s] = str(r)[:200]
+    if not pairs and errors and len(errors) == len(ids):
+        raise http.ApiError("; ".join(f"{s}: {e}" for s, e in errors.items()))
+    hits = [(s, i) for s, i in pairs if all(w in _norm(f"{i['title']} {i.get('summary') or ''}") for w in words)]
+    hits = _by_date(hits)[:limit]
+    return {
+        "topic": topic or None,
+        "category": category or None,
+        "scanned": len(pairs),
+        "count": len(hits),
+        "items": [_entry(s, i, n=TECH_SUMMARY) for s, i in hits],
+        "errors": errors,
+    }
