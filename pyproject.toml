@@ -1,13 +1,13 @@
 [project]
 name = "iran-news-mcp"
-version = "0.2.0"
+version = "0.2.1"
 description = "Unofficial read-only MCP server for Persian news RSS feeds: Mehr, Khabaronline, Hamshahri, Tabnak, Entekhab, Asriran, Zoomit, Digiato, Varzesh3, Khabarvarzeshi."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Sepehr Radmard", email = "sepehrr80@gmail.com" }]
 requires-python = ">=3.10"
-keywords = ["mcp", "model-context-protocol", "iran", "news", "rss", "persian", "mehr", "zoomit", "digiato"]
+keywords = ["mcp", "mcp-server", "model-context-protocol", "iran", "persian", "farsi", "news", "rss", "iranian-news", "mehr", "tabnak", "zoomit", "digiato", "varzesh3", "ai-agents"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
