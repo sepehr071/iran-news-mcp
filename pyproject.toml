@@ -1,6 +1,6 @@
 [project]
 name = "iran-news-mcp"
-version = "0.2.1"
+version = "0.2.2"
 description = "Unofficial read-only MCP server for Persian news RSS feeds: Mehr, Khabaronline, Hamshahri, Tabnak, Entekhab, Asriran, Zoomit, Digiato, Varzesh3, Khabarvarzeshi."
 readme = "README.md"
 license = "MIT"
