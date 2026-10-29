@@ -11,6 +11,7 @@ latest headlines, a merged overview, keyword search and the full text of any sto
 [![CI](https://github.com/sepehr071/iran-news-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sepehr071/iran-news-mcp/actions/workflows/ci.yml)
 [![MCP Registry](https://img.shields.io/badge/MCP_Registry-io.github.sepehr071%2Firan--news--mcp-7c3aed)](https://registry.modelcontextprotocol.io/?q=iran-news-mcp)
 [![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)](https://github.com/sepehr071/iran-news-mcp/blob/main/LICENSE)
+[![mcpfarsi](https://mcpfarsi.ir/badge/iran-news.svg)](https://mcpfarsi.ir/servers/iran-news/)
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_iran--news--mcp-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=iran-news&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22iran-news-mcp%22%5D%7D)
 
@@ -322,6 +323,7 @@ Releases: bump the version in `pyproject.toml` and `server.json`, then push a `v
 - [Iran Quake MCP server](https://github.com/sepehr071/iran-quake-mcp) for earthquakes in Iran
 - [Iran Crypto MCP server](https://github.com/sepehr071/iran-crypto-mcp) for cryptocurrency prices in Iran
 - [iran-mcp](https://github.com/sepehr071/iran-mcp): catalog of all Iranian-service MCP servers
+- Listed on [mcpfarsi.ir](https://mcpfarsi.ir/servers/iran-news/), the Persian MCP marketplace
 
 ## Disclaimer
 
