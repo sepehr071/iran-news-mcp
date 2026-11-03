@@ -37,7 +37,8 @@ def _is_body(tag: str, attrs: dict[str, str]) -> bool:
     cls = attrs.get("class", "").split()
     return (
         attrs.get("itemprop") == "articleBody"  # Mehr, Khabaronline, Hamshahri (same CMS)
-        or attrs.get("id") == "newsMainBody"  # Tabnak
+        or "story-body" in cls  # Tabnak (rebuilt 2026-11); its old CMS used #newsMainBody
+        or attrs.get("id") == "newsMainBody"
         or (tag == "article" and "contents" in cls)  # Zoomit (its inner blocks only carry hashed class names)
         or "articlePost" in cls  # Digiato (WordPress)
         or (tag == "div" and "body" in cls)  # Entekhab, Asriran (Tabnak's CMS; no id on these two)

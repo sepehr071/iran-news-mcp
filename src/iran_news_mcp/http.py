@@ -36,6 +36,7 @@ HOSTS = {
     "www.mehrnews.com",
     "www.khabaronline.ir",
     "www.hamshahrionline.ir",
+    "tabnak.ir",
     "www.tabnak.ir",
     "www.zoomit.ir",
     "digiato.com",

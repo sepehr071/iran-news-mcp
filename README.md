@@ -48,7 +48,7 @@ Iranian news is spread over many sites, in Persian, each with its own category l
 
 Example prompts:
 
-- "What are the top economy headlines on Tabnak and Khabaronline right now?"
+- "What are the top economy headlines on Entekhab and Khabaronline right now?"
 - "Give me a one-line overview of the latest news from every source."
 - "Search the news for 'earthquake' and summarize what the first two results say."
 - "Latest smartphone news from Digiato and Zoomit."
@@ -156,7 +156,7 @@ All tools are annotated `readOnlyHint: true`.
 | `mehr` | Mehr | news | 14 | one per category (30 items) |
 | `khabaronline` | Khabaronline | news | 12 | one per category (30 items) |
 | `hamshahri` | Hamshahri | news | 16 | one per category (30 items) |
-| `tabnak` | Tabnak | news | 11 | one per category (up to 100 items) |
+| `tabnak` | Tabnak | news | 0 | one feed (`latest` only) |
 | `entekhab` | Entekhab | news | 11 | one per category (up to 100 items) |
 | `asriran` | Asriran | news | 11 | one per category (up to 100 items) |
 | `zoomit` | Zoomit | tech | 18 | one feed (300 items), categories filtered here |

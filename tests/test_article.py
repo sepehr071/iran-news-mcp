@@ -35,6 +35,8 @@ def test_extract_cms_body_skips_junk():
     "body",
     [
         '<div class="body" id="newsMainBody"><p>متن یک</p><div class="adv_content">x</div><p>متن دو</p></div>',
+        '<div class="story-body image-story-body" id="image-story-body"><p><img src="/a.webp"></p><p>متن یک</p>'
+        '<p><video src="/c/"></video></p><p>متن دو</p></div><section class="image-follow"><p>دنبال کنید</p></section>',
         '<div class="articlePost"><p class="wp-block-paragraph">متن یک</p><div class="ad_728_90">x</div>'
         '<p class="wp-block-paragraph">متن دو</p></div>',
         '<div class="main-body"><p>منو</p></div><div class="body col-xs-36"><a class="entekhab_lead2">انتخاب :</a><p>متن یک</p>'
@@ -45,7 +47,7 @@ def test_extract_cms_body_skips_junk():
         '<div class="v3w7yly9"><div data-ad="1"></div></div><p>متن دو</p></div>',
         '<div class="item-text" itemprop="articleBody"><p>متن یک</p><p>متن دو</p></div>',
     ],
-    ids=["tabnak", "digiato", "entekhab", "asriran", "varzesh3", "khabarvarzeshi"],
+    ids=["tabnak-old", "tabnak", "digiato", "entekhab", "asriran", "varzesh3", "khabarvarzeshi"],
 )
 def test_extract_other_sites(body):
     assert article.extract(f"<html><body><p>بیرون</p>{body}<p>بیرون</p></body></html>".encode())["text"] == (

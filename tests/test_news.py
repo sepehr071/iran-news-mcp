@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
+
 import httpx
 import pytest
 from conftest import fixture
@@ -10,7 +13,7 @@ HOSTS = {
     "mehr": "www.mehrnews.com",
     "khabaronline": "www.khabaronline.ir",
     "hamshahri": "www.hamshahrionline.ir",
-    "tabnak": "www.tabnak.ir",
+    "tabnak": "tabnak.ir",
     "zoomit": "www.zoomit.ir",
     "digiato": "digiato.com",
     "entekhab": "www.entekhab.ir",
@@ -36,7 +39,7 @@ def test_parse_each_fixture(src):
 
 def test_tabnak_date_and_zoomit_categories():
     t = news.parse_feed(fixture("tabnak.xml"), "tabnak")[0]
-    assert t["date"].isoformat().startswith("2026-10-19T19:12:01")  # 22:42:01 +03:30
+    assert t["date"].isoformat().startswith("2026-11-03T12:52:47") and "tabnak.ir/fa/news/" in t["url"]
     z = news.parse_feed(fixture("zoomit.xml"), "zoomit")[0]
     assert "cryptocurrency" in z["slugs"] and "ارز دیجیتال" in z["categories"]
     assert z["image"].startswith("https://api2.zoomit.ir/media/")
@@ -54,6 +57,7 @@ def test_text_and_norm():
     assert news._norm("كتاب‌ها ۱۲") == "کتاب ها 12"
     assert news._date("2026-10-19T10:00:00Z").hour == 10
     assert news._date("garbage") is None
+    assert news._date("16 Nov 2099 18:51:48 +0330") is None  # a feed's wrong future date
 
 
 async def test_list_sources(client):
@@ -98,10 +102,11 @@ async def test_source_without_the_category_is_skipped_in_latest_all(client, feed
 
 
 async def test_dateless_item_sorts_last(client, feeds):
+    recent = format_datetime(datetime.now(timezone.utc) - timedelta(hours=1)).encode()  # stays fresh whenever run
     feeds["www.varzesh3.com/rss/all"] = (
         b"<rss version='2.0'><channel><item><title>live</title><link>https://www.varzesh3.com/news/1</link></item>"
         b"<item><title>story</title><link>https://www.varzesh3.com/news/2</link>"
-        b"<pubDate>Tue, 20 Oct 2026 12:23:25 GMT</pubDate></item></channel></rss>"
+        b"<pubDate>" + recent + b"</pubDate></item></channel></rss>"
     )
     r = await client.call_tool("nw_latest", {"source": "varzesh3"})
     assert [i["title"] for i in r.structured_content["items"]] == ["story", "live"]
@@ -257,7 +262,8 @@ async def test_tech_news_topic_scans_five_pages(client, feeds):
 
 async def test_tech_news_category_both_sources_and_errors(client, feeds):
     feeds["digiato.com/feed"] = _digiato_pages
-    feeds["www.zoomit.ir/feed/"] = fixture("zoomit.xml").replace(b"2026", b"2099")  # newest story of the merge
+    # the newest story of the merge
+    feeds["www.zoomit.ir/feed/"] = fixture("zoomit.xml").replace(b"19 Oct 2026", b"20 Oct 2026")
     d = (await client.call_tool("nw_tech_news", {"source": "both", "limit": 5})).structured_content
     assert d["count"] == 5 and {i["source"] for i in d["items"]} == {"digiato", "zoomit"}
     d = (await client.call_tool("nw_tech_news", {"category": "gaming", "source": "both"})).structured_content

@@ -87,21 +87,9 @@ SOURCES: dict[str, dict[str, Any]] = {
     "tabnak": {
         "name": "Tabnak (تابناک)",
         "group": "news",
-        "latest": "https://www.tabnak.ir/fa/rss/allnews",
-        "cat": "https://www.tabnak.ir/fa/rss/{}",
-        "cats": {
-            "front-page": ("1", "صفحه نخست"),
-            "world": ("17", "بین الملل"),
-            "economy": ("6", "اقتصادی"),
-            "sports": ("2", "ورزشی"),
-            "politics": ("24", "سیاسی"),
-            "society": ("3", "اجتماعی"),
-            "culture": ("21", "فرهنگی"),
-            "video": ("16", "فیلم"),
-            "photo": ("27", "عکس"),
-            "market": ("23", "بازار و آگهی"),
-            "tech": ("26", "فناوری"),
-        },
+        "latest": "https://tabnak.ir/fa/rss/allnews",
+        "cat": None,
+        "cats": {},  # the rebuilt site (2026-11) has one feed; /fa/rss/<id> and ?service= answer 404 / the same items
     },
     "zoomit": {
         "name": "Zoomit (زومیت)",
@@ -260,7 +248,8 @@ def _date(s: str | None) -> datetime | None:
             d = datetime.fromisoformat(s.replace("Z", "+00:00"))
         except ValueError:
             return None
-    return d.astimezone(timezone.utc) if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    d = d.astimezone(timezone.utc) if d.tzinfo else d.replace(tzinfo=timezone.utc)
+    return None if d > datetime.now(timezone.utc) + timedelta(days=1) else d  # a feed's wrong future date
 
 
 def _local(tag: str) -> str:
