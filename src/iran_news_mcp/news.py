@@ -204,7 +204,7 @@ Source = Annotated[
 Category = Annotated[
     str,
     Field(
-        description="Category slug from nw_list_sources, e.g. 'politics', 'economy', 'sports'. Empty = the source's main latest feed.",
+        description="Slug from nw_list_sources, e.g. 'economy'. Empty = main feed.",
         examples=["economy"],
     ),
 ]
@@ -378,11 +378,7 @@ def _by_date(pairs: list[tuple[str, dict[str, Any]]]) -> list[tuple[str, dict[st
 
 @tool("List news sources")
 async def nw_list_sources() -> dict:
-    """List the news sources with their group and category slugs; call this first to know valid `source` and `category` values.
-
-    `group`: news (Iranian general news), tech, sports. Pass chosen ids as `sources` to nw_search / nw_latest_all to filter by group.
-    Next: nw_latest, nw_search or nw_latest_all; for technology questions use nw_tech_news.
-    """
+    """List the news sources with their group and category slugs; call this first to know valid `source` and `category` values."""
     return {
         "sources": [
             {
@@ -406,9 +402,7 @@ async def nw_latest(
 ) -> dict:
     """Return the newest headlines of one news source, optionally of one category.
 
-    Each item has title, url, published (UTC ISO), summary (plain text) and categories. `stale: true` means the feed's
-    newest story is over 3 days old (some Digiato topic feeds go quiet). Use nw_list_sources for
-    category slugs; use nw_search to look for a topic across sources.
+    `stale: true` means the newest story is over 3 days old.
     """
     items = await _items(source, category)
     newest = items[0].get("date") if items else None
@@ -427,7 +421,7 @@ async def nw_search(
         str,
         Field(
             min_length=1,
-            description="Keywords; every word must appear in the title or summary. Persian works best.",
+            description="Keywords, all must match title/summary.",
             examples=["بورس"],
         ),
     ],
@@ -437,11 +431,9 @@ async def nw_search(
         int, Field(ge=1, le=LIMIT_MAX, description=f"Max items (1-{LIMIT_MAX}), newest first.", examples=[10])
     ] = 10,
 ) -> dict:
-    """Search recent headlines of several sources for a keyword (client-side over their current feeds, newest first).
+    """Search recent headlines of several sources for a keyword (only stories currently in the feeds, not an archive).
 
-    Only the items currently in each feed (roughly the last 10-300 stories) are searched, not an archive.
-    Sources that failed or lack the category are listed under `errors`. For technology topics use nw_tech_news instead
-    (deeper Digiato paging, longer summaries, higher limit).
+    Failed sources are listed under `errors`. For technology topics use nw_tech_news.
     """
     words = _norm(query).split()
     if not words:
@@ -461,16 +453,14 @@ async def nw_latest_all(
         Field(
             ge=1,
             le=PER_SOURCE_MAX,
-            description=f"Items (1-{PER_SOURCE_MAX}) taken from each source before merging.",
+            description=f"Items (1-{PER_SOURCE_MAX}) per source.",
             examples=[2],
         ),
     ] = 2,
 ) -> dict:
     """Return the newest headlines from every source (or the chosen ones), merged and sorted by time.
 
-    Use it for a general news overview; pass a common category slug such as 'economy' or 'sports' to narrow it.
-    Not for technology questions: use nw_tech_news.
-    Sources that failed or lack the category are listed under `errors`.
+    Use for a general overview; not for technology questions (use nw_tech_news).
     """
     pairs, errors = await _many(sources, category)
     taken: list[tuple[str, dict[str, Any]]] = []
@@ -488,16 +478,16 @@ async def nw_tech_news(
     topic: Annotated[
         str,
         Field(
-            description="Keywords; every word must appear in the title or summary. Persian or brand names. Empty = no filter.",
+            description="Keywords, all must match title/summary. Empty = no filter.",
             examples=["آیفون"],
         ),
     ] = "",
     category: Annotated[
         str,
         Field(
-            description="Tech topic slug. Digiato: mobile, apps, ai, gadgets, hardware, laptop, crypto, internet, security, "
-            "reviews, car, business, buying-guide, science. Zoomit adds apple, samsung, gaming, space, software-news, ... "
-            "(nw_list_sources has all). Empty = everything.",
+            description="Tech slug: Digiato mobile, apps, ai, gadgets, hardware, laptop, crypto, internet, security, "
+            "reviews, car, business, buying-guide, science; Zoomit adds apple, samsung, gaming, ... "
+            "(nw_list_sources has all). Empty = all.",
             examples=["ai"],
         ),
     ] = "",
@@ -506,22 +496,19 @@ async def nw_tech_news(
         Field(
             ge=1,
             le=TECH_LIMIT_MAX,
-            description=f"Max stories (1-{TECH_LIMIT_MAX}), newest first. Use 20-30 for a roundup.",
+            description=f"Max stories (1-{TECH_LIMIT_MAX}), newest first.",
             examples=[20],
         ),
     ] = 15,
     source: Annotated[
         Literal["digiato", "zoomit", "both"],
-        Field(description="digiato (default, richest summaries and paging), zoomit, or both merged by time."),
+        Field(description="digiato, zoomit, or both merged by time."),
     ] = "digiato",
 ) -> dict:
     """Return the newest technology news (phones, laptops, AI, gadgets, apps, crypto, cars, security, games) with long summaries.
 
-    Use this first for any technology question instead of nw_search or nw_latest_all. Digiato is the default and is read
-    several feed pages deep, so `limit` up to 30 works; a `topic` scans the latest 50 Digiato stories (Zoomit: its 300).
-    Each item has title, url, published (UTC ISO), a summary of up to 300 characters, categories and author. `scanned`
-    is how many stories were searched: if `count` is 0 or low, try a shorter or more general `topic`, or source='both'.
-    Next: nw_article with an item's `url` for the full text.
+    Use first for any technology question. A `topic` scans the latest 50 Digiato stories (Zoomit: 300); `scanned` is
+    how many were searched, so if `count` is low try a shorter `topic` or source='both'.
     """
     ids = ["digiato", "zoomit"] if source == "both" else [source]
     words = _norm(topic).split()

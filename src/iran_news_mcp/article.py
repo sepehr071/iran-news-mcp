@@ -137,18 +137,18 @@ async def nw_article(
     url: Annotated[
         str,
         Field(
-            description="Article url from nw_latest / nw_search / nw_latest_all (from any listed source).",
+            description="Article `url` from a listing tool.",
             examples=["https://www.mehrnews.com/news/6983987"],
         ),
     ],
     part: Annotated[
         int,
-        Field(ge=1, description=f"Part number for long articles ({CHUNK} characters each); see `parts`.", examples=[1]),
+        Field(ge=1, description=f"Part number ({CHUNK} chars each).", examples=[1]),
     ] = 1,
 ) -> dict:
     """Fetch one article page and return its full body text, split into parts for long stories.
 
-    Works for every source. Photo and video items often have no body text. `parts` > 1 means call again with part=2, 3, ...
+    Photo and video items often have no body text. If `parts` > 1, call again with part=2, ...
     """
     a = extract(await http.fetch_page(url))
     if len(a["text"] or "") < 40:  # video pages hold only a download label such as "دریافت 44 MB"
