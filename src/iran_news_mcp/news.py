@@ -482,7 +482,7 @@ async def nw_tech_news(
     topic: Annotated[
         str,
         Field(
-            description="Keywords, all must match title/summary. Empty = no filter.",
+            description="Keywords, all must match title/summary; Persian or brand names. For a broad subject use `category`. Empty = no filter.",
             examples=["آیفون"],
         ),
     ] = "",
@@ -506,7 +506,7 @@ async def nw_tech_news(
     ] = 15,
     source: Annotated[
         Literal["digiato", "zoomit", "both"],
-        Field(description="digiato, zoomit, or both merged by time."),
+        Field(description="digiato (default, richest summaries and paging), zoomit, or both merged by time."),
     ] = "digiato",
 ) -> dict:
     """Return the newest technology news (phones, laptops, AI, gadgets, apps, crypto, cars, security, games) with long summaries.
