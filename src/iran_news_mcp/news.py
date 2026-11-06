@@ -204,7 +204,7 @@ Source = Annotated[
 Category = Annotated[
     str,
     Field(
-        description="Slug from nw_list_sources, e.g. 'economy'. Empty = main feed.",
+        description="Slug from nw_list_sources, e.g. 'economy', 'sports'. Empty = main feed.",
         examples=["economy"],
     ),
 ]
@@ -378,7 +378,10 @@ def _by_date(pairs: list[tuple[str, dict[str, Any]]]) -> list[tuple[str, dict[st
 
 @tool("List news sources")
 async def nw_list_sources() -> dict:
-    """List the news sources with their group and category slugs; call this first to know valid `source` and `category` values."""
+    """List the news sources with their group and category slugs; call this first to know valid `source` and `category` values.
+
+    `group`: news, tech or sports; pass a group's ids as `sources` to nw_search / nw_latest_all.
+    """
     return {
         "sources": [
             {
@@ -402,7 +405,7 @@ async def nw_latest(
 ) -> dict:
     """Return the newest headlines of one news source, optionally of one category.
 
-    `stale: true` means the newest story is over 3 days old.
+    Items have title, url, published (UTC ISO), summary and categories. `stale: true` means the newest story is over 3 days old.
     """
     items = await _items(source, category)
     newest = items[0].get("date") if items else None
@@ -433,7 +436,7 @@ async def nw_search(
 ) -> dict:
     """Search recent headlines of several sources for a keyword (only stories currently in the feeds, not an archive).
 
-    Failed sources are listed under `errors`. For technology topics use nw_tech_news.
+    Failed sources or ones lacking the category are listed under `errors`. For technology topics use nw_tech_news.
     """
     words = _norm(query).split()
     if not words:
@@ -460,7 +463,8 @@ async def nw_latest_all(
 ) -> dict:
     """Return the newest headlines from every source (or the chosen ones), merged and sorted by time.
 
-    Use for a general overview; not for technology questions (use nw_tech_news).
+    Use for a general overview; pass a common category slug such as 'economy' or 'sports' to narrow it (not `sources`, which drops
+    other groups). Not for technology questions (use nw_tech_news). Sources lacking the category appear under `errors`.
     """
     pairs, errors = await _many(sources, category)
     taken: list[tuple[str, dict[str, Any]]] = []
@@ -486,7 +490,7 @@ async def nw_tech_news(
         str,
         Field(
             description="Tech slug: Digiato mobile, apps, ai, gadgets, hardware, laptop, crypto, internet, security, "
-            "reviews, car, business, buying-guide, science; Zoomit adds apple, samsung, gaming, ... "
+            "reviews, car, business, buying-guide, science; Zoomit adds apple, samsung, gaming, space, software-news, ... "
             "(nw_list_sources has all). Empty = all.",
             examples=["ai"],
         ),
@@ -508,7 +512,8 @@ async def nw_tech_news(
     """Return the newest technology news (phones, laptops, AI, gadgets, apps, crypto, cars, security, games) with long summaries.
 
     Use first for any technology question. A `topic` scans the latest 50 Digiato stories (Zoomit: 300); `scanned` is
-    how many were searched, so if `count` is low try a shorter `topic` or source='both'.
+    how many were searched, so if `count` is low try a shorter `topic` or source='both'. Items add `categories` and `author`;
+    replies up to ~25 KB.
     """
     ids = ["digiato", "zoomit"] if source == "both" else [source]
     words = _norm(topic).split()
