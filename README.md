@@ -15,7 +15,7 @@ latest headlines, a merged overview, keyword search and the full text of any sto
 
 [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_iran--news--mcp-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=iran-news&config=%7B%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22iran-news-mcp%22%5D%7D)
 
-[For AI agents](#for-ai-agents) · [Why](#why) · [What it can do](#what-it-can-do) · [Quick start](#quick-start) · [Tools](#tools) · [Sources](#sources) · [How it works](#how-it-works) · [Good to know](#good-to-know) · [FAQ](#faq) · [Configuration](#configuration) · [فارسی](#فارسی) · [Development](#development) · [Related servers](#related-servers)
+[For AI agents](#for-ai-agents) · [Why](#why) · [What it can do](#what-it-can-do) · [Quick start](#quick-start) · [Tools](#tools) · [Sources](#sources) · [Good to know](#good-to-know) · [FAQ](#faq) · [Configuration](#configuration) · [فارسی](#فارسی) · [Development](#development) · [Related servers](#related-servers)
 
 ---
 
@@ -165,21 +165,6 @@ All tools are annotated `readOnlyHint: true`.
 | `khabarvarzeshi` | Khabarvarzeshi | sports | 1 (`sports`) | one feed (30 items) |
 
 Common slugs shared by most sources: `politics`, `economy`, `society`, `culture`, `world`, `sports`, `science`, `provinces`, `photo`. Always call `nw_list_sources` for the exact slugs per source.
-
-## How it works
-
-```text
-  AI agent  (Claude, Cursor, Copilot, ...)
-      │
-      │  MCP over stdio
-      ▼
-  iran-news-mcp  (runs on your machine)
-      │
-      │  HTTPS
-      └──────▶  public RSS feeds and article pages of the 10 news sites
-```
-
-`iran-news-mcp` runs locally, reads each site's public RSS feed (RSS 2.0 or Atom) and, for `nw_article`, the story's HTML page. There is no hosted server in between, no API key, and nothing about you is sent anywhere else.
 
 ## Good to know
 
